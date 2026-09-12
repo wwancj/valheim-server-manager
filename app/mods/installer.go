@@ -63,7 +63,7 @@ func (i *Installer) GetInstalled() []InstalledMod {
 	return i.installed
 }
 
-func (i *Installer) InstallMod(ctx context.Context, pkg thunderstore.Package, version thunderstore.Version) error {
+func (i *Installer) InstallMod(ctx context.Context, pkg thunderstore.TSPackage, version thunderstore.Version) error {
 	for _, mod := range i.installed {
 		if mod.FullName == pkg.FullName && mod.Version == version.VersionNumber {
 			return fmt.Errorf("mod %s v%s already installed", pkg.FullName, version.VersionNumber)

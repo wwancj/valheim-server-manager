@@ -6,10 +6,10 @@ const {Content} = Layout
 
 function MainLayout() {
     return (
-        <Layout style={{minHeight: '100vh'}}>
+        <Layout style={{height: '100vh', overflow: 'hidden'}}>
             <Sidebar/>
             <Layout>
-                <Content style={{margin: 16, padding: 24}}>
+                <Content style={{margin: 16, padding: 24, overflow: 'auto', height: '100vh'}}>
                     <Outlet/>
                 </Content>
             </Layout>

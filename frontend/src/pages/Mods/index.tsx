@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useState, useEffect} from 'react'
 import {Card, Typography, Input, Tabs, List, Button, Tag, Space, message, Switch, Popconfirm, Empty, Avatar} from 'antd'
 import {SearchOutlined, DownloadOutlined, DeleteOutlined} from '@ant-design/icons'
 import {SearchMods, GetInstalledMods, UninstallMod, SetModEnabled} from '../../../wailsjs/go/app/App'
@@ -10,6 +10,23 @@ function Mods() {
     const [installedMods, setInstalledMods] = useState<any[]>([])
     const [searching, setSearching] = useState(false)
     const [serverDir, setServerDir] = useState('')
+
+    // Load popular mods on mount
+    useEffect(() => {
+        loadPopular()
+    }, [])
+
+    const loadPopular = async () => {
+        setSearching(true)
+        try {
+            const results = await SearchMods('', 1)
+            setSearchResults(Array.isArray(results) ? results : [])
+        } catch (err: any) {
+            console.error('Load popular failed:', err)
+        } finally {
+            setSearching(false)
+        }
+    }
 
     const handleSearch = async (query: string) => {
         if (!query.trim()) return

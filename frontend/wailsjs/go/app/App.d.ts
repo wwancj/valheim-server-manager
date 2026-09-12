@@ -36,7 +36,7 @@ export function GetInstalledMods(arg1:string):Promise<Array<mods.InstalledMod>>;
 
 export function GetLogs():Promise<Array<string>>;
 
-export function GetModDetail(arg1:string,arg2:string):Promise<thunderstore.Package>;
+export function GetModDetail(arg1:string,arg2:string):Promise<thunderstore.TSPackage>;
 
 export function GetProcessInfo(arg1:number):Promise<system.ProcessInfo>;
 
@@ -52,7 +52,7 @@ export function Greet(arg1:string):Promise<string>;
 
 export function InstallBepInEx(arg1:string):Promise<void>;
 
-export function InstallMod(arg1:string,arg2:thunderstore.Package,arg3:thunderstore.Version):Promise<void>;
+export function InstallMod(arg1:string,arg2:thunderstore.TSPackage,arg3:thunderstore.Version):Promise<void>;
 
 export function InstallSteamCMD():Promise<void>;
 
@@ -74,7 +74,7 @@ export function RunSafetyChecks(arg1:string,arg2:string,arg3:number,arg4:boolean
 
 export function SaveServerConfig(arg1:string,arg2:config.ServerConfig):Promise<void>;
 
-export function SearchMods(arg1:string,arg2:number):Promise<Array<thunderstore.Package>>;
+export function SearchMods(arg1:string,arg2:number):Promise<Array<thunderstore.TSPackage>>;
 
 export function SetLogPaused(arg1:boolean):Promise<void>;
 

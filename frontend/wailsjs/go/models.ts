@@ -236,7 +236,7 @@ export namespace thunderstore {
 	        this.date_created = source["date_created"];
 	    }
 	}
-	export class Package {
+	export class TSPackage {
 	    name: string;
 	    full_name: string;
 	    owner: string;
@@ -249,7 +249,7 @@ export namespace thunderstore {
 	    latest?: Latest;
 	
 	    static createFrom(source: any = {}) {
-	        return new Package(source);
+	        return new TSPackage(source);
 	    }
 	
 	    constructor(source: any = {}) {

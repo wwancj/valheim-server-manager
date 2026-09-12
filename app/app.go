@@ -182,14 +182,14 @@ func (a *App) GetBepInExPlugins(serverDir string) []string {
 
 // --- Phase 7: Thunderstore ---
 
-func (a *App) SearchMods(query string, page int) ([]thunderstore.Package, int, error) {
+func (a *App) SearchMods(query string, page int) ([]thunderstore.TSPackage, int, error) {
 	if query == "" {
 		return a.ThunderstoreClient.GetPopularPackages(page)
 	}
 	return a.ThunderstoreClient.SearchPackages(query, page)
 }
 
-func (a *App) GetModDetail(namespace, name string) (*thunderstore.Package, error) {
+func (a *App) GetModDetail(namespace, name string) (*thunderstore.TSPackage, error) {
 	return a.ThunderstoreClient.GetPackage(namespace, name)
 }
 
@@ -200,7 +200,7 @@ func (a *App) GetInstalledMods(serverDir string) []mods.InstalledMod {
 	return installer.GetInstalled()
 }
 
-func (a *App) InstallMod(serverDir string, pkg thunderstore.Package, version thunderstore.Version) error {
+func (a *App) InstallMod(serverDir string, pkg thunderstore.TSPackage, version thunderstore.Version) error {
 	installer := mods.NewInstaller(serverDir)
 	return installer.InstallMod(a.ctx, pkg, version)
 }
