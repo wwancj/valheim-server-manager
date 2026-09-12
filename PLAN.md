@@ -1,6 +1,6 @@
 # Valheim Server Manager — Coding Plan
 
-## Phase 0：项目骨架 ⬜
+## Phase 0：项目骨架 ✅
 
 目标：先跑起来。
 
