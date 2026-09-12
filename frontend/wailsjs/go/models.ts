@@ -206,23 +206,33 @@ export namespace system {
 
 export namespace thunderstore {
 	
-	export class Version {
+	export class Latest {
+	    namespace: string;
+	    name: string;
 	    version_number: string;
-	    download_url: string;
+	    full_name: string;
+	    description: string;
+	    icon: string;
 	    dependencies: string[];
-	    file_size: number;
+	    download_url: string;
+	    downloads: number;
 	    date_created: string;
 	
 	    static createFrom(source: any = {}) {
-	        return new Version(source);
+	        return new Latest(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.namespace = source["namespace"];
+	        this.name = source["name"];
 	        this.version_number = source["version_number"];
-	        this.download_url = source["download_url"];
+	        this.full_name = source["full_name"];
+	        this.description = source["description"];
+	        this.icon = source["icon"];
 	        this.dependencies = source["dependencies"];
-	        this.file_size = source["file_size"];
+	        this.download_url = source["download_url"];
+	        this.downloads = source["downloads"];
 	        this.date_created = source["date_created"];
 	    }
 	}
@@ -232,13 +242,11 @@ export namespace thunderstore {
 	    owner: string;
 	    description: string;
 	    version_number: string;
-	    downloads: number;
+	    total_downloads: number;
 	    rating_score: number;
-	    categories: string[];
 	    package_url: string;
-	    versions: Version[];
-	    tags: string[];
 	    icon: string;
+	    latest?: Latest;
 	
 	    static createFrom(source: any = {}) {
 	        return new Package(source);
@@ -251,13 +259,11 @@ export namespace thunderstore {
 	        this.owner = source["owner"];
 	        this.description = source["description"];
 	        this.version_number = source["version_number"];
-	        this.downloads = source["downloads"];
+	        this.total_downloads = source["total_downloads"];
 	        this.rating_score = source["rating_score"];
-	        this.categories = source["categories"];
 	        this.package_url = source["package_url"];
-	        this.versions = this.convertValues(source["versions"], Version);
-	        this.tags = source["tags"];
 	        this.icon = source["icon"];
+	        this.latest = this.convertValues(source["latest"], Latest);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -277,6 +283,26 @@ export namespace thunderstore {
 		    }
 		    return a;
 		}
+	}
+	export class Version {
+	    version_number: string;
+	    download_url: string;
+	    dependencies: string[];
+	    file_size: number;
+	    date_created: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Version(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.version_number = source["version_number"];
+	        this.download_url = source["download_url"];
+	        this.dependencies = source["dependencies"];
+	        this.file_size = source["file_size"];
+	        this.date_created = source["date_created"];
+	    }
 	}
 
 }

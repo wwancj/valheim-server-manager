@@ -48,8 +48,8 @@ export const bepInExService = {
 }
 
 export const thunderstoreService = {
-    search: (query: string, page: number) => App.SearchMods(query, page) as Promise<ModPackage[]>,
-    getDetail: (ns: string, name: string) => App.GetModDetail(ns, name) as Promise<ModPackage>,
+    search: (query: string, page: number) => App.SearchMods(query, page) as unknown as Promise<ModPackage[]>,
+    getDetail: (ns: string, name: string) => App.GetModDetail(ns, name) as unknown as Promise<ModPackage>,
 }
 
 export const modService = {

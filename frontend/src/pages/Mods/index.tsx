@@ -1,6 +1,6 @@
 import {useState} from 'react'
-import {Card, Typography, Input, Tabs, List, Button, Tag, Space, message, Switch, Popconfirm, Empty} from 'antd'
-import {SearchOutlined, DownloadOutlined, DeleteOutlined, CheckCircleOutlined} from '@ant-design/icons'
+import {Card, Typography, Input, Tabs, List, Button, Tag, Space, message, Switch, Popconfirm, Empty, Avatar} from 'antd'
+import {SearchOutlined, DownloadOutlined, DeleteOutlined} from '@ant-design/icons'
 import {SearchMods, GetInstalledMods, UninstallMod, SetModEnabled} from '../../../wailsjs/go/app/App'
 
 const {Title, Paragraph, Text} = Typography
@@ -26,14 +26,14 @@ function Mods() {
 
     const loadInstalled = async () => {
         if (!serverDir) {
-            message.warning('请先在服务器页面设置服务器路径')
+            message.warning('请先输入服务器路径')
             return
         }
         try {
             const mods = await GetInstalledMods(serverDir)
             setInstalledMods(mods || [])
         } catch {
-            message.error('加载已安装 Mod 失败')
+            message.error('加载失败')
         }
     }
 
@@ -57,6 +57,23 @@ function Mods() {
         }
     }
 
+    const getModIcon = (item: any) => {
+        const icon = item.icon || item.latest?.icon
+        return icon || undefined
+    }
+
+    const getModVersion = (item: any) => {
+        return item.version_number || item.latest?.version_number || item.version || '-'
+    }
+
+    const getModDesc = (item: any) => {
+        return item.description || item.latest?.description || '暂无描述'
+    }
+
+    const getModDeps = (item: any) => {
+        return item.latest?.dependencies || []
+    }
+
     return (
         <div>
             <Title level={2}>Mod 管理</Title>
@@ -68,7 +85,7 @@ function Mods() {
                         children: (
                             <div>
                                 <Input.Search
-                                    placeholder="搜索 Mod（例如：CreatureManager）"
+                                    placeholder="搜索 Mod（例如：CreatureManager、BepInEx）"
                                     enterButton={<><SearchOutlined/> 搜索</>}
                                     size="large"
                                     loading={searching}
@@ -85,15 +102,26 @@ function Mods() {
                                                 hoverable
                                                 title={
                                                     <Space>
+                                                        {getModIcon(item) && (
+                                                            <Avatar src={getModIcon(item)} size={32} shape="square"/>
+                                                        )}
                                                         <Text strong>{item.name}</Text>
-                                                        <Tag>v{item.version_number}</Tag>
+                                                        <Tag>v{getModVersion(item)}</Tag>
                                                     </Space>
                                                 }
                                                 extra={<Tag color="blue">{item.owner}</Tag>}
                                             >
-                                                <Paragraph ellipsis={{rows: 2}}>{item.description}</Paragraph>
+                                                <Paragraph ellipsis={{rows: 2}}>{getModDesc(item)}</Paragraph>
+                                                {getModDeps(item).length > 0 && (
+                                                    <div style={{marginBottom: 8}}>
+                                                        <Text type="secondary" style={{fontSize: 12}}>依赖: </Text>
+                                                        {getModDeps(item).slice(0, 3).map((dep: string) => (
+                                                            <Tag key={dep} style={{fontSize: 11}}>{dep.split('-').pop()}</Tag>
+                                                        ))}
+                                                    </div>
+                                                )}
                                                 <Space>
-                                                    <Text type="secondary">⬇ {item.downloads?.toLocaleString()}</Text>
+                                                    <Text type="secondary">⬇ {(item.total_downloads || item.downloads || 0).toLocaleString()}</Text>
                                                     <Button
                                                         type="primary"
                                                         icon={<DownloadOutlined/>}
