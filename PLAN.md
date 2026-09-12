@@ -22,7 +22,7 @@
 
 ---
 
-## Phase 1：服务器目录管理 ⬜
+## Phase 1：服务器目录管理 ✅
 
 先不要碰 SteamCMD。
 
@@ -135,7 +135,7 @@ Dashboard 展示：CPU / Memory / Uptime / Players
 
 ## MVP 最终范围
 
-- [ ] Wails Desktop
+- [x] Wails Desktop
 - [ ] Valheim Server 安装
 - [ ] SteamCMD
 - [ ] 一键启动/停止/重启
