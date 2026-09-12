@@ -1,35 +1,158 @@
-import {Card, Typography, Input, Tabs} from 'antd'
-import {SearchOutlined} from '@ant-design/icons'
+import {useState} from 'react'
+import {Card, Typography, Input, Tabs, List, Button, Tag, Space, message, Switch, Popconfirm, Empty} from 'antd'
+import {SearchOutlined, DownloadOutlined, DeleteOutlined, CheckCircleOutlined} from '@ant-design/icons'
+import {SearchMods, GetInstalledMods, UninstallMod, SetModEnabled} from '../../../wailsjs/go/app/App'
 
-const {Title} = Typography
+const {Title, Paragraph, Text} = Typography
 
 function Mods() {
+    const [searchResults, setSearchResults] = useState<any[]>([])
+    const [installedMods, setInstalledMods] = useState<any[]>([])
+    const [searching, setSearching] = useState(false)
+    const [serverDir, setServerDir] = useState('')
+
+    const handleSearch = async (query: string) => {
+        if (!query.trim()) return
+        setSearching(true)
+        try {
+            const results = await SearchMods(query, 1)
+            setSearchResults(Array.isArray(results) ? results : [])
+        } catch (err: any) {
+            message.error('搜索失败: ' + (err?.message || '未知错误'))
+        } finally {
+            setSearching(false)
+        }
+    }
+
+    const loadInstalled = async () => {
+        if (!serverDir) {
+            message.warning('请先在服务器页面设置服务器路径')
+            return
+        }
+        try {
+            const mods = await GetInstalledMods(serverDir)
+            setInstalledMods(mods || [])
+        } catch {
+            message.error('加载已安装 Mod 失败')
+        }
+    }
+
+    const handleUninstall = async (fullName: string) => {
+        try {
+            await UninstallMod(serverDir, fullName)
+            message.success('已卸载')
+            loadInstalled()
+        } catch (err: any) {
+            message.error(err?.message || '卸载失败')
+        }
+    }
+
+    const handleToggle = async (fullName: string, enabled: boolean) => {
+        try {
+            await SetModEnabled(serverDir, fullName, enabled)
+            message.success(enabled ? '已启用' : '已禁用')
+            loadInstalled()
+        } catch (err: any) {
+            message.error(err?.message || '操作失败')
+        }
+    }
+
     return (
         <div>
             <Title level={2}>Mod 管理</Title>
             <Tabs
                 items={[
                     {
-                        key: 'installed',
-                        label: '已安装',
-                        children: (
-                            <Card>
-                                <p>暂无已安装的 Mod</p>
-                            </Card>
-                        ),
-                    },
-                    {
                         key: 'store',
                         label: 'Mod 商店',
                         children: (
-                            <Card>
-                                <Input
-                                    placeholder="搜索 Mod..."
-                                    prefix={<SearchOutlined/>}
+                            <div>
+                                <Input.Search
+                                    placeholder="搜索 Mod（例如：CreatureManager）"
+                                    enterButton={<><SearchOutlined/> 搜索</>}
+                                    size="large"
+                                    loading={searching}
+                                    onSearch={handleSearch}
                                     style={{marginBottom: 16}}
                                 />
-                                <p>连接 Thunderstore 后可搜索安装 Mod</p>
-                            </Card>
+                                <List
+                                    grid={{gutter: 16, column: 2}}
+                                    dataSource={searchResults}
+                                    locale={{emptyText: <Empty description="输入关键词搜索 Mod"/>}}
+                                    renderItem={(item: any) => (
+                                        <List.Item>
+                                            <Card
+                                                hoverable
+                                                title={
+                                                    <Space>
+                                                        <Text strong>{item.name}</Text>
+                                                        <Tag>v{item.version_number}</Tag>
+                                                    </Space>
+                                                }
+                                                extra={<Tag color="blue">{item.owner}</Tag>}
+                                            >
+                                                <Paragraph ellipsis={{rows: 2}}>{item.description}</Paragraph>
+                                                <Space>
+                                                    <Text type="secondary">⬇ {item.downloads?.toLocaleString()}</Text>
+                                                    <Button
+                                                        type="primary"
+                                                        icon={<DownloadOutlined/>}
+                                                        size="small"
+                                                        onClick={() => message.info('请先在服务器页面选择一个已安装的服务器')}
+                                                    >
+                                                        安装
+                                                    </Button>
+                                                </Space>
+                                            </Card>
+                                        </List.Item>
+                                    )}
+                                />
+                            </div>
+                        ),
+                    },
+                    {
+                        key: 'installed',
+                        label: '已安装',
+                        children: (
+                            <div>
+                                <Space style={{marginBottom: 16}}>
+                                    <Input
+                                        placeholder="服务器安装路径（例如 D:\ValheimServer）"
+                                        value={serverDir}
+                                        onChange={e => setServerDir(e.target.value)}
+                                        style={{width: 400}}
+                                    />
+                                    <Button onClick={loadInstalled}>加载</Button>
+                                </Space>
+                                <List
+                                    dataSource={installedMods}
+                                    locale={{emptyText: <Empty description="暂无已安装的 Mod"/>}}
+                                    renderItem={(mod: any) => (
+                                        <List.Item
+                                            actions={[
+                                                <Switch
+                                                    checked={mod.enabled}
+                                                    checkedChildren="启用"
+                                                    unCheckedChildren="禁用"
+                                                    onChange={(checked) => handleToggle(mod.fullName, checked)}
+                                                />,
+                                                <Popconfirm title="确定卸载？" onConfirm={() => handleUninstall(mod.fullName)}>
+                                                    <Button danger icon={<DeleteOutlined/>} size="small">卸载</Button>
+                                                </Popconfirm>,
+                                            ]}
+                                        >
+                                            <List.Item.Meta
+                                                title={<Space>
+                                                    <Text strong>{mod.name}</Text>
+                                                    <Tag>v{mod.version}</Tag>
+                                                    {mod.enabled ? <Tag color="green">启用</Tag> : <Tag color="red">禁用</Tag>}
+                                                </Space>}
+                                                description={mod.description || mod.fullName}
+                                            />
+                                        </List.Item>
+                                    )}
+                                />
+                            </div>
                         ),
                     },
                 ]}
