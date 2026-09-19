@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"valheim-server-manager/app/events"
 )
 
 // LogService manages server log streaming.
@@ -18,14 +18,19 @@ type LogService struct {
 	lines    []string
 	maxLines int
 	paused   bool
+	emitter  events.EventEmitter
 }
 
 func NewLogService() *LogService {
-	return &LogService{maxLines: 5000, lines: []string{}}
+	return &LogService{maxLines: 5000, lines: []string{}, emitter: &events.NoopEmitter{}}
 }
 
 func (s *LogService) SetContext(ctx context.Context) {
 	s.ctx = ctx
+}
+
+func (s *LogService) SetEventEmitter(emitter events.EventEmitter) {
+	s.emitter = emitter
 }
 
 func (s *LogService) AppendLog(line string) {
@@ -40,8 +45,8 @@ func (s *LogService) AppendLog(line string) {
 		s.lines = s.lines[len(s.lines)-s.maxLines:]
 	}
 
-	if s.ctx != nil && !s.paused {
-		wailsRuntime.EventsEmit(s.ctx, "log:new", formatted)
+	if !s.paused {
+		s.emitter.Emit("log:new", formatted)
 	}
 }
 
@@ -57,9 +62,7 @@ func (s *LogService) ClearLogs() {
 	s.mu.Lock()
 	s.lines = []string{}
 	s.mu.Unlock()
-	if s.ctx != nil {
-		wailsRuntime.EventsEmit(s.ctx, "log:clear", nil)
-	}
+	s.emitter.Emit("log:clear", nil)
 }
 
 func (s *LogService) SetPaused(paused bool) {

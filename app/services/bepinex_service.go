@@ -7,8 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
-
+	"valheim-server-manager/app/events"
 	"valheim-server-manager/app/utils"
 )
 
@@ -18,10 +17,16 @@ const (
 )
 
 // BepInExService manages BepInEx installation.
-type BepInExService struct{}
+type BepInExService struct {
+	emitter events.EventEmitter
+}
 
 func NewBepInExService() *BepInExService {
-	return &BepInExService{}
+	return &BepInExService{emitter: &events.NoopEmitter{}}
+}
+
+func (s *BepInExService) SetEventEmitter(emitter events.EventEmitter) {
+	s.emitter = emitter
 }
 
 func (s *BepInExService) IsInstalled(serverDir string) bool {
@@ -31,13 +36,13 @@ func (s *BepInExService) IsInstalled(serverDir string) bool {
 
 func (s *BepInExService) Install(ctx context.Context, serverDir string) error {
 	if s.IsInstalled(serverDir) {
-		wailsRuntime.EventsEmit(ctx, "bepinex:progress", map[string]interface{}{
+		s.emitter.Emit("bepinex:progress", map[string]interface{}{
 			"stage": "done", "message": "BepInEx 已安装",
 		})
 		return nil
 	}
 
-	wailsRuntime.EventsEmit(ctx, "bepinex:progress", map[string]interface{}{
+	s.emitter.Emit("bepinex:progress", map[string]interface{}{
 		"stage": "downloading", "message": "正在下载 BepInEx...", "progress": 0,
 	})
 
@@ -47,7 +52,7 @@ func (s *BepInExService) Install(ctx context.Context, serverDir string) error {
 	}
 	defer os.Remove(tmpZip)
 
-	wailsRuntime.EventsEmit(ctx, "bepinex:progress", map[string]interface{}{
+	s.emitter.Emit("bepinex:progress", map[string]interface{}{
 		"stage": "extracting", "message": "正在安装 BepInEx...", "progress": 50,
 	})
 
@@ -55,7 +60,7 @@ func (s *BepInExService) Install(ctx context.Context, serverDir string) error {
 		return fmt.Errorf("extract failed: %w", err)
 	}
 
-	wailsRuntime.EventsEmit(ctx, "bepinex:progress", map[string]interface{}{
+	s.emitter.Emit("bepinex:progress", map[string]interface{}{
 		"stage": "done", "message": "BepInEx 安装完成", "progress": 100,
 	})
 	return nil

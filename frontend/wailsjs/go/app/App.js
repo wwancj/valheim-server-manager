@@ -154,6 +154,14 @@ export function StopServer() {
   return window['go']['app']['App']['StopServer']();
 }
 
+export function TestBinding() {
+  return window['go']['app']['App']['TestBinding']();
+}
+
+export function TestHTTP() {
+  return window['go']['app']['App']['TestHTTP']();
+}
+
 export function UninstallMod(arg1, arg2) {
   return window['go']['app']['App']['UninstallMod'](arg1, arg2);
 }

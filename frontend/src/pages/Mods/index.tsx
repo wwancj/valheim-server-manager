@@ -1,7 +1,7 @@
 import {useState, useEffect} from 'react'
 import {Card, Typography, Input, Tabs, List, Button, Tag, Space, message, Switch, Popconfirm, Empty, Avatar} from 'antd'
 import {SearchOutlined, DownloadOutlined, DeleteOutlined} from '@ant-design/icons'
-import {SearchMods, GetInstalledMods, UninstallMod, SetModEnabled} from '../../../wailsjs/go/app/App'
+import {SearchMods, GetInstalledMods, UninstallMod, SetModEnabled} from '../../api/client'
 
 const {Title, Paragraph, Text} = Typography
 
@@ -10,19 +10,26 @@ function Mods() {
     const [installedMods, setInstalledMods] = useState<any[]>([])
     const [searching, setSearching] = useState(false)
     const [serverDir, setServerDir] = useState('')
+    const [debug, setDebug] = useState('等待加载...')
 
     // Load popular mods on mount
     useEffect(() => {
+        setDebug('组件已挂载，开始加载...')
         loadPopular()
     }, [])
 
     const loadPopular = async () => {
+        setDebug('正在加载热门 Mod...')
         setSearching(true)
         try {
-            const results = await SearchMods('', 1)
-            setSearchResults(Array.isArray(results) ? results : [])
+            const result = await SearchMods('', 1)
+            const arr = result?.packages || []
+            setSearchResults(arr)
+            setDebug(`加载成功，数量: ${arr.length}`)
         } catch (err: any) {
-            console.error('Load popular failed:', err)
+            const errMsg = err?.message || String(err)
+            setDebug(`加载失败: ${errMsg}`)
+            message.error('加载失败: ' + errMsg)
         } finally {
             setSearching(false)
         }
@@ -32,8 +39,8 @@ function Mods() {
         if (!query.trim()) return
         setSearching(true)
         try {
-            const results = await SearchMods(query, 1)
-            setSearchResults(Array.isArray(results) ? results : [])
+            const result = await SearchMods(query, 1)
+            setSearchResults(result?.packages || [])
         } catch (err: any) {
             message.error('搜索失败: ' + (err?.message || '未知错误'))
         } finally {
@@ -94,6 +101,9 @@ function Mods() {
     return (
         <div>
             <Title level={2}>Mod 管理</Title>
+            <div style={{background: '#1a1a2e', padding: 8, marginBottom: 16, borderRadius: 4, fontSize: 12, color: '#0f0'}}>
+                调试: {debug}
+            </div>
             <Tabs
                 items={[
                     {

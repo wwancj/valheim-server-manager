@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 const (
@@ -61,7 +62,7 @@ type Client struct {
 }
 
 func NewClient() *Client {
-	return &Client{httpClient: &http.Client{}}
+	return &Client{httpClient: &http.Client{Timeout: 15 * time.Second}}
 }
 
 // SearchPackages searches for mods by query.
@@ -77,7 +78,13 @@ func (c *Client) GetPopularPackages(page int) ([]TSPackage, int, error) {
 }
 
 func (c *Client) fetchPackages(url string) ([]TSPackage, int, error) {
-	resp, err := c.httpClient.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("User-Agent", "ValheimServerManager/1.0")
+	req.Header.Set("Accept", "application/json")
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, 0, fmt.Errorf("request failed: %w", err)
 	}

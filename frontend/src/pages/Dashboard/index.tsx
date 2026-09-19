@@ -1,7 +1,7 @@
 import {useState, useEffect} from 'react'
 import {Card, Col, Row, Statistic, Typography, Progress, Space, Tag} from 'antd'
 import {CloudServerOutlined, AppstoreOutlined, SaveOutlined, DashboardOutlined, DatabaseOutlined} from '@ant-design/icons'
-import {GetAppInfo, GetSystemInfo, GetAppUptime, IsServerRunning} from '../../../wailsjs/go/app/App'
+import {GetAppInfo, GetSystemInfo, GetAppUptime, IsServerRunning} from '../../api/client'
 
 const {Title, Text} = Typography
 

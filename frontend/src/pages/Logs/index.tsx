@@ -1,7 +1,8 @@
 import {useState, useEffect, useRef} from 'react'
 import {Card, Typography, Button, Space, Input, Tag} from 'antd'
 import {ClearOutlined, PauseCircleOutlined, PlayCircleOutlined, DownloadOutlined} from '@ant-design/icons'
-import {GetLogs, ClearLogs, SetLogPaused, ExportLogs} from '../../../wailsjs/go/app/App'
+import {GetLogs, ClearLogs, SetLogPaused, ExportLogs} from '../../api/client'
+import {wsClient} from '../../api/websocket'
 
 const {Title} = Typography
 
@@ -14,12 +15,21 @@ function Logs() {
 
     useEffect(() => {
         GetLogs().then(setLogs)
-        const timer = setInterval(() => {
-            if (!paused) {
-                GetLogs().then(setLogs)
+
+        // Subscribe to real-time log updates via WebSocket
+        const unsubNew = wsClient.on('log:new', (data: { line: string }) => {
+            if (!paused && data?.line) {
+                setLogs(prev => [...prev, data.line])
             }
-        }, 1000)
-        return () => clearInterval(timer)
+        })
+        const unsubClear = wsClient.on('log:clear', () => {
+            setLogs([])
+        })
+
+        return () => {
+            unsubNew()
+            unsubClear()
+        }
     }, [paused])
 
     useEffect(() => {

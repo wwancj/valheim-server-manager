@@ -3,10 +3,13 @@ package app
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
 
 	"valheim-server-manager/app/backup"
 	"valheim-server-manager/app/config"
+	"valheim-server-manager/app/events"
 	"valheim-server-manager/app/mods"
 	"valheim-server-manager/app/models"
 	"valheim-server-manager/app/process"
@@ -20,18 +23,19 @@ import (
 type App struct {
 	ctx    context.Context
 
-	ServerService   *services.ServerService
-	LogService      *services.LogService
-	BepInExService  *services.BepInExService
-	SafetyService   *services.SafetyService
-	ProfileService  *services.ProfileService
-	SteamCMDManager *steamcmd.Manager
-	ProcessManager  *process.Manager
-	ConfigManager   *config.Manager
-	BackupManager   *backup.Manager
-	Monitor         *system.Monitor
+	ServerService      *services.ServerService
+	LogService         *services.LogService
+	BepInExService     *services.BepInExService
+	SafetyService      *services.SafetyService
+	ProfileService     *services.ProfileService
+	SteamCMDManager    *steamcmd.Manager
+	ProcessManager     *process.Manager
+	ConfigManager      *config.Manager
+	AdminManager       *config.AdminManager
+	BackupManager      *backup.Manager
+	Monitor            *system.Monitor
 	ThunderstoreClient *thunderstore.Client
-	ModInstaller    *mods.Installer
+	ModInstaller       *mods.Installer
 }
 
 // NewApp creates a new App instance.
@@ -44,6 +48,7 @@ func NewApp() *App {
 		SteamCMDManager:    steamcmd.NewManager(""),
 		ProcessManager:     process.NewManager(),
 		ConfigManager:      config.NewManager(""),
+		AdminManager:       &config.AdminManager{},
 		BackupManager:      backup.NewManager(""),
 		Monitor:            system.NewMonitor(),
 		ThunderstoreClient: thunderstore.NewClient(),
@@ -54,6 +59,14 @@ func NewApp() *App {
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 	a.LogService.SetContext(ctx)
+}
+
+// SetEventEmitter wires the event emitter into all services that emit real-time events.
+func (a *App) SetEventEmitter(emitter events.EventEmitter) {
+	a.LogService.SetEventEmitter(emitter)
+	a.BepInExService.SetEventEmitter(emitter)
+	a.ProcessManager.SetEventEmitter(emitter)
+	a.SteamCMDManager.SetEventEmitter(emitter)
 }
 
 // --- Phase 0 bindings ---
@@ -111,14 +124,20 @@ func (a *App) InstallValheimServer(serverDir string) error {
 // --- Phase 3: Server process management ---
 
 func (a *App) StartServer(serverDir, name, world, password string, port int, public bool, preset string) error {
-	builder := &process.CommandBuilder{
-		Name:     name,
-		Port:     port,
-		World:    world,
-		Password: password,
-		Public:   public,
-		Preset:   preset,
-	}
+	cfg := config.DefaultConfig()
+	cfg.Server.Name = name
+	cfg.Server.World = world
+	cfg.Server.Password = password
+	cfg.Server.Port = port
+	cfg.Server.Public = public
+	cfg.World.Preset = preset
+	builder := &process.CommandBuilder{Config: cfg}
+	return a.ProcessManager.Start(a.ctx, serverDir, builder)
+}
+
+// StartServerWithConfig starts the server with a full configuration.
+func (a *App) StartServerWithConfig(serverDir string, cfg config.ServerConfig) error {
+	builder := &process.CommandBuilder{Config: cfg}
 	return a.ProcessManager.Start(a.ctx, serverDir, builder)
 }
 
@@ -162,8 +181,65 @@ func (a *App) SaveServerConfig(serverID string, cfg config.ServerConfig) error {
 	return a.ConfigManager.SaveConfig(serverID, cfg)
 }
 
+// TestBinding is a simple test to verify bindings work.
+func (a *App) TestBinding() string {
+	return "binding works!"
+}
+
+// TestHTTP tests HTTP connectivity to Thunderstore.
+func (a *App) TestHTTP() string {
+	client := a.ThunderstoreClient
+	pkgs, count, err := client.GetPopularPackages(1)
+	if err != nil {
+		return "ERROR: " + err.Error()
+	}
+	return fmt.Sprintf("OK: count=%d, len=%d", count, len(pkgs))
+}
+
 func (a *App) GetDefaultConfig() config.ServerConfig {
 	return config.DefaultConfig()
+}
+
+func (a *App) GetConfigTemplates() []config.ConfigTemplate {
+	return config.GetTemplates()
+}
+
+func (a *App) GetCustomPresets() ([]config.ConfigTemplate, error) {
+	return a.ConfigManager.GetCustomPresets()
+}
+
+func (a *App) SaveCustomPreset(preset config.ConfigTemplate) error {
+	return a.ConfigManager.SaveCustomPreset(preset)
+}
+
+func (a *App) DeleteCustomPreset(id string) error {
+	return a.ConfigManager.DeleteCustomPreset(id)
+}
+
+// --- Admin/Whitelist/Blacklist management ---
+
+func (a *App) GetAdminList(serverDir string) ([]string, error) {
+	return a.AdminManager.GetList(serverDir, "adminlist.txt")
+}
+
+func (a *App) SaveAdminList(serverDir string, list []string) error {
+	return a.AdminManager.SaveList(serverDir, "adminlist.txt", list)
+}
+
+func (a *App) GetWhitelist(serverDir string) ([]string, error) {
+	return a.AdminManager.GetList(serverDir, "permittedlist.txt")
+}
+
+func (a *App) SaveWhitelist(serverDir string, list []string) error {
+	return a.AdminManager.SaveList(serverDir, "permittedlist.txt", list)
+}
+
+func (a *App) GetBlacklist(serverDir string) ([]string, error) {
+	return a.AdminManager.GetList(serverDir, "bannedlist.txt")
+}
+
+func (a *App) SaveBlacklist(serverDir string, list []string) error {
+	return a.AdminManager.SaveList(serverDir, "bannedlist.txt", list)
 }
 
 // --- Phase 6: BepInEx ---
@@ -262,6 +338,53 @@ func (a *App) CreateProfile(serverDir, name, description string, modList []strin
 func (a *App) DeleteProfile(serverDir, id string) error {
 	ps := services.NewProfileService(serverDir)
 	return ps.DeleteProfile(id)
+}
+
+// --- Export start script ---
+
+// ExportStartScript generates a .bat startup script in the server directory.
+func (a *App) ExportStartScript(serverDir string, cfg config.ServerConfig) (string, error) {
+	if serverDir == "" {
+		return "", fmt.Errorf("server directory is empty")
+	}
+	builder := &process.CommandBuilder{Config: cfg}
+	args := builder.BuildArgs()
+
+	exe := "valheim_server.exe"
+	if runtime.GOOS != "windows" {
+		exe = "valheim_server.x86_64"
+	}
+
+	line := exe
+	for _, a := range args {
+		line += " " + a
+	}
+
+	var content string
+	if runtime.GOOS == "windows" {
+		content = fmt.Sprintf(`@echo off
+echo Starting Valheim Server...
+cd /d "%s"
+%s
+pause
+`, serverDir, line)
+	} else {
+		content = fmt.Sprintf(`#!/bin/bash
+echo "Starting Valheim Server..."
+cd "%s"
+./%s
+`, serverDir, line)
+	}
+
+	scriptName := "start_server.bat"
+	if runtime.GOOS != "windows" {
+		scriptName = "start_server.sh"
+	}
+	path := filepath.Join(serverDir, scriptName)
+	if err := os.WriteFile(path, []byte(content), 0755); err != nil {
+		return "", fmt.Errorf("failed to write script: %w", err)
+	}
+	return path, nil
 }
 
 // --- Phase 14: Safety checks ---

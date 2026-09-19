@@ -1,7 +1,7 @@
 import {useState, useEffect} from 'react'
 import {Card, Typography, Button, Table, Space, Input, Popconfirm, message, Empty} from 'antd'
 import {SaveOutlined, UndoOutlined, DeleteOutlined} from '@ant-design/icons'
-import {CreateBackup, ListBackups, RestoreBackup, DeleteBackup} from '../../../wailsjs/go/app/App'
+import {CreateBackup, ListBackups, RestoreBackup, DeleteBackup} from '../../api/client'
 
 const {Title} = Typography
 

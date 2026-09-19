@@ -8,8 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
-
+	"valheim-server-manager/app/events"
 	"valheim-server-manager/app/thunderstore"
 	"valheim-server-manager/app/utils"
 )
@@ -30,15 +29,21 @@ type Installer struct {
 	pluginsDir string
 	modsFile   string
 	installed  []InstalledMod
+	emitter    events.EventEmitter
 }
 
 // NewInstaller creates a new mod installer.
 func NewInstaller(serverDir string) *Installer {
 	pluginsDir := filepath.Join(serverDir, "BepInEx", "plugins")
 	modsFile := filepath.Join(serverDir, "BepInEx", "installed_mods.json")
-	installer := &Installer{pluginsDir: pluginsDir, modsFile: modsFile}
+	installer := &Installer{pluginsDir: pluginsDir, modsFile: modsFile, emitter: &events.NoopEmitter{}}
 	installer.loadInstalled()
 	return installer
+}
+
+// SetEventEmitter sets the event emitter for real-time notifications.
+func (i *Installer) SetEventEmitter(emitter events.EventEmitter) {
+	i.emitter = emitter
 }
 
 func (i *Installer) loadInstalled() {
@@ -93,11 +98,9 @@ func (i *Installer) InstallMod(ctx context.Context, pkg thunderstore.TSPackage, 
 	}
 	i.installed = append(i.installed, mod)
 
-	if ctx != nil {
-		wailsRuntime.EventsEmit(ctx, "mod:installed", map[string]interface{}{
-			"name": mod.Name, "version": mod.Version,
-		})
-	}
+	i.emitter.Emit("mod:installed", map[string]interface{}{
+		"name": mod.Name, "version": mod.Version,
+	})
 
 	return i.saveInstalled()
 }

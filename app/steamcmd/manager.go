@@ -9,8 +9,7 @@ import (
 	"runtime"
 	"strings"
 
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
-
+	"valheim-server-manager/app/events"
 	"valheim-server-manager/app/utils"
 )
 
@@ -24,6 +23,7 @@ const (
 // Manager handles SteamCMD operations.
 type Manager struct {
 	installDir string
+	emitter    events.EventEmitter
 }
 
 // NewManager creates a new SteamCMD manager.
@@ -36,7 +36,12 @@ func NewManager(installDir string) *Manager {
 		}
 		installDir = filepath.Join(appData, "ValheimServerManager", "steamcmd")
 	}
-	return &Manager{installDir: installDir}
+	return &Manager{installDir: installDir, emitter: &events.NoopEmitter{}}
+}
+
+// SetEventEmitter sets the event emitter for real-time notifications.
+func (m *Manager) SetEventEmitter(emitter events.EventEmitter) {
+	m.emitter = emitter
 }
 
 // IsInstalled checks if SteamCMD is installed.
@@ -69,20 +74,20 @@ func (m *Manager) Install(ctx context.Context) error {
 
 func (m *Manager) installWindows(ctx context.Context) error {
 	zipPath := filepath.Join(m.installDir, "steamcmd.zip")
-	wailsRuntime.EventsEmit(ctx, "steamcmd:progress", map[string]interface{}{
+	m.emitter.Emit("steamcmd:progress", map[string]interface{}{
 		"stage": "downloading", "message": "正在下载 SteamCMD...", "progress": 0,
 	})
 	if err := utils.DownloadFile(steamcmdURLWin, zipPath); err != nil {
 		return fmt.Errorf("download failed: %w", err)
 	}
-	wailsRuntime.EventsEmit(ctx, "steamcmd:progress", map[string]interface{}{
+	m.emitter.Emit("steamcmd:progress", map[string]interface{}{
 		"stage": "extracting", "message": "正在解压...", "progress": 50,
 	})
 	if err := utils.Unzip(zipPath, m.installDir); err != nil {
 		return fmt.Errorf("extract failed: %w", err)
 	}
 	os.Remove(zipPath)
-	wailsRuntime.EventsEmit(ctx, "steamcmd:progress", map[string]interface{}{
+	m.emitter.Emit("steamcmd:progress", map[string]interface{}{
 		"stage": "done", "message": "SteamCMD 安装完成", "progress": 100,
 	})
 	return nil
@@ -90,13 +95,13 @@ func (m *Manager) installWindows(ctx context.Context) error {
 
 func (m *Manager) installLinux(ctx context.Context) error {
 	tarPath := filepath.Join(m.installDir, "steamcmd.tar.gz")
-	wailsRuntime.EventsEmit(ctx, "steamcmd:progress", map[string]interface{}{
+	m.emitter.Emit("steamcmd:progress", map[string]interface{}{
 		"stage": "downloading", "message": "正在下载 SteamCMD...", "progress": 0,
 	})
 	if err := utils.DownloadFile("https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz", tarPath); err != nil {
 		return err
 	}
-	wailsRuntime.EventsEmit(ctx, "steamcmd:progress", map[string]interface{}{
+	m.emitter.Emit("steamcmd:progress", map[string]interface{}{
 		"stage": "extracting", "message": "正在解压...", "progress": 50,
 	})
 	cmd := exec.Command("tar", "-xzf", tarPath, "-C", m.installDir)
@@ -104,7 +109,7 @@ func (m *Manager) installLinux(ctx context.Context) error {
 		return fmt.Errorf("extract failed: %w", err)
 	}
 	os.Remove(tarPath)
-	wailsRuntime.EventsEmit(ctx, "steamcmd:progress", map[string]interface{}{
+	m.emitter.Emit("steamcmd:progress", map[string]interface{}{
 		"stage": "done", "message": "SteamCMD 安装完成", "progress": 100,
 	})
 	return nil
@@ -119,7 +124,7 @@ func (m *Manager) InstallValheimServer(ctx context.Context, serverDir string) er
 		return err
 	}
 
-	wailsRuntime.EventsEmit(ctx, "steamcmd:valheim:progress", map[string]interface{}{
+	m.emitter.Emit("steamcmd:valheim:progress", map[string]interface{}{
 		"stage": "starting", "message": "正在启动 SteamCMD...", "progress": 0,
 	})
 
@@ -144,9 +149,9 @@ func (m *Manager) InstallValheimServer(ctx context.Context, serverDir string) er
 			n, err := stdout.Read(buf)
 			if n > 0 {
 				line := string(buf[:n])
-				wailsRuntime.EventsEmit(ctx, "steamcmd:valheim:output", line)
+				m.emitter.Emit("steamcmd:valheim:output", line)
 				if p := parseProgress(line); p >= 0 {
-					wailsRuntime.EventsEmit(ctx, "steamcmd:valheim:progress", map[string]interface{}{
+					m.emitter.Emit("steamcmd:valheim:progress", map[string]interface{}{
 						"stage": "installing", "message": fmt.Sprintf("安装中... %d%%", p), "progress": p,
 					})
 				}
@@ -161,7 +166,7 @@ func (m *Manager) InstallValheimServer(ctx context.Context, serverDir string) er
 		for {
 			n, err := stderr.Read(buf)
 			if n > 0 {
-				wailsRuntime.EventsEmit(ctx, "steamcmd:valheim:output", string(buf[:n]))
+				m.emitter.Emit("steamcmd:valheim:output", string(buf[:n]))
 			}
 			if err != nil {
 				break
@@ -172,7 +177,7 @@ func (m *Manager) InstallValheimServer(ctx context.Context, serverDir string) er
 	if err := cmd.Wait(); err != nil {
 		return fmt.Errorf("SteamCMD exited with error: %w", err)
 	}
-	wailsRuntime.EventsEmit(ctx, "steamcmd:valheim:progress", map[string]interface{}{
+	m.emitter.Emit("steamcmd:valheim:progress", map[string]interface{}{
 		"stage": "done", "message": "Valheim Server 安装完成", "progress": 100,
 	})
 	return nil

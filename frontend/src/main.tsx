@@ -3,7 +3,11 @@ import {createRoot} from 'react-dom/client'
 import {ConfigProvider, theme} from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import App from './App'
+import {wsClient} from './api/websocket'
 import './style.css'
+
+// Connect WebSocket for real-time events
+wsClient.connect()
 
 const container = document.getElementById('root')
 const root = createRoot(container!)

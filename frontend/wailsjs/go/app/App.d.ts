@@ -84,6 +84,10 @@ export function StartServer(arg1:string,arg2:string,arg3:string,arg4:string,arg5
 
 export function StopServer():Promise<void>;
 
+export function TestBinding():Promise<string>;
+
+export function TestHTTP():Promise<string>;
+
 export function UninstallMod(arg1:string,arg2:string):Promise<void>;
 
 export function UpdateServer(arg1:string,arg2:string,arg3:string,arg4:string,arg5:number):Promise<models.Server>;
