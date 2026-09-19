@@ -1,0 +1,144 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install & Build Frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 1
+
+  build-binaries:
+    name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
+    needs: build-frontend
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: windows
+            goarch: amd64
+            suffix: '.exe'
+            asset_name: 'valheim-server-manager-windows-amd64.exe'
+          - goos: linux
+            goarch: amd64
+            suffix: ''
+            asset_name: 'valheim-server-manager-linux-amd64'
+          - goos: darwin
+            goarch: amd64
+            suffix: ''
+            asset_name: 'valheim-server-manager-macos-amd64'
+          - goos: darwin
+            goarch: arm64
+            suffix: ''
+            asset_name: 'valheim-server-manager-macos-arm64'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - name: Build Binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'
+        run: |
+          go build -ldflags="-s -w" -o ${{ matrix.asset_name }} .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.asset_name }}
+          retention-days: 1
+
+  release:
+    name: Create Release
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List Artifacts
+        run: find artifacts -type f
+
+      - name: Create Release & Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/valheim-server-manager-windows-amd64.exe/valheim-server-manager-windows-amd64.exe
+            artifacts/valheim-server-manager-linux-amd64/valheim-server-manager-linux-amd64
+            artifacts/valheim-server-manager-macos-amd64/valheim-server-manager-macos-amd64
+            artifacts/valheim-server-manager-macos-arm64/valheim-server-manager-macos-arm64
+          body: |
+            ## 🎮 Valheim Server Manager
+
+            ### 下载 / Download
+
+            | 平台 / Platform | 文件 / File |
+            |---|---|
+            | Windows (64-bit) | `valheim-server-manager-windows-amd64.exe` |
+            | Linux (64-bit) | `valheim-server-manager-linux-amd64` |
+            | macOS (Intel) | `valheim-server-manager-macos-amd64` |
+            | macOS (Apple Silicon) | `valheim-server-manager-macos-arm64` |
+
+            ### 使用方法 / Usage
+
+            **Windows:**
+            ```
+            valheim-server-manager-windows-amd64.exe
+            ```
+
+            **Linux / macOS:**
+            ```bash
+            chmod +x valheim-server-manager-linux-amd64
+            ./valheim-server-manager-linux-amd64
+            ```
+
+            启动后访问 / Open: **http://localhost:13256**
+
+            ### 连接服务器 / Connect to Server
+            - 关闭 Crossplay → 输入 `127.0.0.1:2456`
+            - Disable Crossplay → Enter `127.0.0.1:2456`
