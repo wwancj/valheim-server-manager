@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
-	"syscall"
 
 	"valheim-server-manager/app/events"
 	"valheim-server-manager/app/config"
@@ -133,10 +132,7 @@ func (m *Manager) Start(ctx context.Context, serverDir string, builder *CommandB
 
 	cmd := exec.Command(exePath, builder.BuildArgs()...)
 	cmd.Dir = serverDir
-
-	if runtime.GOOS == "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	}
+	configureProcess(cmd)
 
 	// Capture stdout/stderr
 	stdout, err := cmd.StdoutPipe()
