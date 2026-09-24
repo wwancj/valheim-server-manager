@@ -57,10 +57,12 @@ jobs:
             goarch: amd64
             suffix: ''
             asset_name: 'valheim-server-manager-macos-amd64'
+            arch: 'amd64'
           - goos: darwin
             goarch: arm64
             suffix: ''
             asset_name: 'valheim-server-manager-macos-arm64'
+            arch: 'arm64'
     steps:
       - uses: actions/checkout@v4
 
@@ -81,10 +83,23 @@ jobs:
         run: |
           go build -ldflags="-s -w" -o ${{ matrix.asset_name }} .
 
+      - name: Build macOS .app (darwin only)
+        if: matrix.goos == 'darwin'
+        run: |
+          chmod +x build/darwin/build-app.sh
+          ./build/darwin/build-app.sh ${{ matrix.asset_name }} ${{ matrix.arch }}
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
           path: ${{ matrix.asset_name }}
+          retention-days: 1
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.goos == 'darwin'
+        with:
+          name: ${{ matrix.asset_name }}.app.zip
+          path: valheim-server-manager-macos-${{ matrix.arch }}.app.zip
           retention-days: 1
 
   release:
@@ -112,6 +127,8 @@ jobs:
             artifacts/valheim-server-manager-linux-amd64/valheim-server-manager-linux-amd64
             artifacts/valheim-server-manager-macos-amd64/valheim-server-manager-macos-amd64
             artifacts/valheim-server-manager-macos-arm64/valheim-server-manager-macos-arm64
+            artifacts/valheim-server-manager-macos-amd64.app.zip/valheim-server-manager-macos-amd64.app.zip
+            artifacts/valheim-server-manager-macos-arm64.app.zip/valheim-server-manager-macos-arm64.app.zip
           body: |
             ## 🎮 Valheim Server Manager
 
@@ -121,8 +138,8 @@ jobs:
             |---|---|
             | Windows (64-bit) | `valheim-server-manager-windows-amd64.exe` |
             | Linux (64-bit) | `valheim-server-manager-linux-amd64` |
-            | macOS (Intel) | `valheim-server-manager-macos-amd64` |
-            | macOS (Apple Silicon) | `valheim-server-manager-macos-arm64` |
+            | macOS (Intel) | `valheim-server-manager-macos-amd64.app.zip` |
+            | macOS (Apple Silicon) | `valheim-server-manager-macos-arm64.app.zip` |
 
             ### 使用方法 / Usage
 
@@ -131,11 +148,16 @@ jobs:
             valheim-server-manager-windows-amd64.exe
             ```
 
-            **Linux / macOS:**
+            **Linux:**
             ```bash
             chmod +x valheim-server-manager-linux-amd64
             ./valheim-server-manager-linux-amd64
             ```
+
+            **macOS:**
+            1. 下载并解压 `.app.zip` 文件
+            2. 双击 `ValheimServerManager.app` 运行
+            3. 首次运行可能需要在「系统设置 → 隐私与安全性」中允许
 
             启动后访问 / Open: **http://localhost:13256**
 
